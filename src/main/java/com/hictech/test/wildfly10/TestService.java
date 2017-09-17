@@ -8,6 +8,7 @@ import static org.infinispan.util.concurrent.IsolationLevel.SERIALIZABLE;
 import javax.annotation.Resource;
 import javax.ejb.Stateless;
 
+import org.apache.log4j.Logger;
 import org.infinispan.AdvancedCache;
 import org.infinispan.Cache;
 import org.infinispan.configuration.cache.Configuration;
@@ -20,6 +21,7 @@ import org.infinispan.transaction.lookup.GenericTransactionManagerLookup;
 @Stateless
 public class TestService {
 
+	private static Logger logger = Logger.getLogger(TestService.class);
 	@Resource(lookup = "java:jboss/infinispan/container/server")
 	private EmbeddedCacheManager manager;
 
@@ -35,8 +37,19 @@ public class TestService {
 
 			AdvancedCache<Object, Object> advanced_cache = cache.getAdvancedCache();
 			test += "tx manager class:    " + advanced_cache.getTransactionManager() + "\n";
+			
+			Object myval = advanced_cache.get("mykey");
+			
+			if(myval == null) {
+				myval  = System.currentTimeMillis() + "";
+				logger.info("mykey wasn't found in cache");
+				advanced_cache.put("mykey", myval);
+			}
+			
+			logger.info("myval = " + myval);
+			logger.info("test = " + test);
 
-			return test;
+			return myval.toString();
 		}
 		catch (Exception e) {
 			throw new RuntimeException(e);
@@ -45,6 +58,8 @@ public class TestService {
 	
 	private Configuration conf() {
 		Transport transport = manager.getGlobalComponentRegistry().getGlobalConfiguration().transport().transport();
+		
+		logger.info("Transport: " + transport);
 		
 		return new ConfigurationBuilder()
 			.clustering()
