@@ -1,5 +1,9 @@
 package com.hictech.test.wildfly10;
 
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
+
 import javax.annotation.Resource;
 import javax.ejb.Stateless;
 import javax.websocket.OnClose;
@@ -19,12 +23,13 @@ public class ClientMessageServerEndPoint {
 	private static Logger logger = Logger.getLogger(ClientMessageServerEndPoint.class);
 	@Resource(lookup = "java:global/hcloud/TestService")
 	private TestService service;
-	
+	private static Set<Session> newSessionsSet = Collections.synchronizedSet(new HashSet<Session>());
 	
 	
 	@OnOpen
 	public void onOpen(Session session) {
 		logger.info("Openning websocket session: " + session.getId());
+		newSessionsSet.add(session);
 	}
 	
 	@OnMessage
@@ -36,11 +41,19 @@ public class ClientMessageServerEndPoint {
 	@OnClose
 	public void onClose(Session session) {
 		logger.info("Closing websocket session: " + session.getId());
+		newSessionsSet.remove(session);
 	}
 	
 	@OnError
 	public void error(Session session, Throwable t) {
 		logger.error("Error occured on websocket session: " + session.getId() + ", error: " + t.getMessage());
+		newSessionsSet.remove(session);
+	}
+	
+	public static void sendMessageToClient(String message) {
+		for (Session session : newSessionsSet) {
+			session.getAsyncRemote().sendText(message);
+		}
 	}
 	
 	public void invokeOnBean(Session session, String user) {
@@ -52,9 +65,9 @@ public class ClientMessageServerEndPoint {
 		}
 		
 		try {
-			String myVal = service.test();
+			Integer myVal = service.test();
 			System.out.println("Received greeting: " + myVal);
-			session.getAsyncRemote().sendText(myVal);
+			session.getAsyncRemote().sendText(myVal + "");
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			logger.error(e.getMessage(), e);

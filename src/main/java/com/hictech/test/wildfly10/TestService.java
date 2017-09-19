@@ -25,7 +25,7 @@ public class TestService {
 	@Resource(lookup = "java:jboss/infinispan/container/server")
 	private EmbeddedCacheManager manager;
 
-	public String test() {
+	public Integer test() {
 		String test;
 		try {
 			manager.defineConfiguration("default", conf());
@@ -38,18 +38,20 @@ public class TestService {
 			AdvancedCache<Object, Object> advanced_cache = cache.getAdvancedCache();
 			test += "tx manager class:    " + advanced_cache.getTransactionManager() + "\n";
 			
-			Object myval = advanced_cache.get("mykey");
+			TestClass myval = (TestClass)advanced_cache.get("mykey");
 			
 			if(myval == null) {
-				myval  = System.currentTimeMillis() + "";
+				myval  = new TestClass();
 				logger.info("mykey wasn't found in cache");
 				advanced_cache.put("mykey", myval);
 			}
 			
-			logger.info("myval = " + myval);
+			Integer retVal = myval.incrementAndGet();
+			advanced_cache.replace("mykey", myval);
+			logger.info("myval = " + retVal);
 			logger.info("test = " + test);
 
-			return myval.toString();
+			return retVal;
 		}
 		catch (Exception e) {
 			throw new RuntimeException(e);
